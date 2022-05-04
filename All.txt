@@ -746,3 +746,240 @@ Dan kadang jika lupa, bisa jadi kita tidak pernah tahu kalo ternyata ada unit te
 Untuk kasus seperti ini, ada baiknya kita memberi tahu ke PHPUnit bahwa unit test tersebut belum selesai dengan menggunakan method Assert::markTestIncomplete()
 
 Kode : Test Sukses Walau Belum Selesai
+    public function testIncrement()
+    {
+        self::assertEquals(0, $this->counter->getCounter());
+    }
+
+Kode : Menandai Incomplete Test
+    public function testIncrement()
+    {
+        self::assertEquals(0, $this->counter->getCounter());
+        self::markTestIncomplete("TODO do counter again");
+        echo "TEST TEST" . PHP_EOL;
+    }
+
+Kode : Hasil Unit Test
+
+Peringatan
+Menggunakan function markTestIncomplete() akan menghasilkan error IncompleteTestError
+Oleh karena itu, kode dibawahnya tidak akan dieksekusi
+
+Skip Test
+Kadang ada masalah ketika membuat unit test, sehingga kita ingin men-disabled unit test yang sudah ada
+Saat ingin men-disabled unit test, kadang kita melakukan hal seperti, mengubah nama function sehingga tidak diawali dengan test atau menghapus @test jika menggunakan annotation
+Hanya saja masalahnya jika itu kita lakukan, secara otomatis unit test akan hilang dari laporan PHPUnit, dan jika kita lupa, bisa saja unit test tersebut akan ter-disabled selamanya
+Cara yang baik jika ada unit test yang memang ingin kita disabled adalah dengan menggunakan Assert::markTestSkipped(), dimana nanti akan terdapat laporan dari PHPUnit bahwa unit test tersebut kita skip
+
+Kode : Tanpa Skip Unit Test
+    public function increment()
+    {
+        $this->counter->increment();
+        Assert::assertEquals(1, $this->counter->getCounter());
+    }
+
+Kode : Skip Test
+    public function increment()
+    {
+        self::markTestSkipped("Masih ada error yang bingung");
+
+        $this->counter->increment();
+        Assert::assertEquals(1, $this->counter->getCounter());
+    }
+
+Peringatan
+Menggunakan function markTestSkipped() akan menghasilkan error SkippedTestError
+Oleh karena itu, kode dibawahnya tidak akan dieksekusi
+
+Skip Berdasarkan Kondisi
+PHPUnit mendukung melakukan skip unit test berdasarkan kondisi tertentu
+Ada banyak kondisi yang bisa di cek, seperti versi php, sistem operasi, dan lain-lain
+Untuk melakukan skip berdasarkan kondisi, kita bisa menggunakan annotation @requires diikuti dengan tipe kondisi
+Beberapa kondisi mendukung operasi perbandingan
+
+Parameter @requires
+
+Kode : Only On Windows
+    /**
+     * @requires OSFAMILY Windows
+     */
+    public function testOnlyWindows()
+    {
+        self::assertTrue(true, "Only in Windows");
+    }
+
+Kode : Only for PHP >= 8
+    /**
+     * @requires PHP >= 8
+     * @requires OSFAMILY Darwin
+     */
+    public function testOnlyForMacAndPHP8()
+    {
+        self::assertTrue(true, "Only for Mac and PHP 8");
+    }
+
+Stub
+
+Permasalahan Unit Test
+Kadang membuat unit test untuk sebuah class bukanlah hal yang mudah, apalagi jika ternyata class tersebut tergantung dengan object lain
+Apalagi jika ternyata object yang dibutuhkan ternyata tergantung dengan object lain lagi
+Hal seperti ini akan sangat menyulitkan saat membuat unit test
+Sebagai contoh kita akan coba membuat studi kasus sederhana membuat class yang kompleks
+
+Kode : Product
+<?php
+
+
+namespace ProgrammerZamanNow\Test;
+
+
+class Product
+{
+    private string $id, $name, $description;
+    private int $price, $quantity;
+
+    /**
+     * @return string
+     */
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
+    /**
+     * @param string $id
+     */
+    public function setId(string $id): void
+    {
+        $this->id = $id;
+    }
+
+    /**
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * @param string $name
+     */
+    public function setName(string $name): void
+    {
+        $this->name = $name;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDescription(): string
+    {
+        return $this->description;
+    }
+
+    /**
+     * @param string $description
+     */
+    public function setDescription(string $description): void
+    {
+        $this->description = $description;
+    }
+
+    /**
+     * @return int
+     */
+    public function getPrice(): int
+    {
+        return $this->price;
+    }
+
+    /**
+     * @param int $price
+     */
+    public function setPrice(int $price): void
+    {
+        $this->price = $price;
+    }
+
+    /**
+     * @return int
+     */
+    public function getQuantity(): int
+    {
+        return $this->quantity;
+    }
+
+    /**
+     * @param int $quantity
+     */
+    public function setQuantity(int $quantity): void
+    {
+        $this->quantity = $quantity;
+    }
+
+
+}
+
+Kode : Product Repository
+<?php
+
+
+namespace ProgrammerZamanNow\Test;
+
+
+interface ProductRepository
+{
+
+    function save(Product $product): Product;
+
+    function delete(?Product $product): void;
+
+    function findById(string $id): ?Product;
+
+    function findAll(): array;
+
+}
+
+Kode : Product Service
+<?php
+
+
+namespace ProgrammerZamanNow\Test;
+
+
+class ProductService
+{
+
+    public function __construct(private ProductRepository $repository)
+    {
+    }
+
+    public function register(Product $product): Product
+    {
+        if ($this->repository->findById($product->getId()) != null) {
+            throw new \Exception("Product is already exists");
+        }
+
+        return $this->repository->save($product);
+    }
+
+    public function delete(string $id): void
+    {
+        $product = $this->repository->findById($id);
+        if ($product == null) {
+            throw new \Exception("Product is not found");
+        }
+
+        $this->repository->delete($product);
+    }
+
+}
+
+Stub
+Saat akan membuat test untuk sebuah class, dan ternyata class tersebut butuh dependency object lain, maka kita bisa membuat object pengganti yang bisa kita konfigurasi agar sesuai dengan keinginan kita
+Teknik ini dinamakan stubbing, dan object pengganti yang kita buat disebut stub
+PHPUnit mendukung pembuatan object stub secara mudah hanya dengan menggunakan function createStub(className) yang terdapat di class TestCase
+method createStub() secara otomatis akan membuat object class atau interface yang kita inginkan dengan default implementation
+
+Kode : Membuat Stub
