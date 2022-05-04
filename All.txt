@@ -1,0 +1,221 @@
+Pengenalan Software Testing
+Software testing adalah salah satu disiplin ilmu dalam software engineering
+Tujuan utama dari software testing adalah memastikan kualitas kode dan aplikasi kita baik
+Ilmu untuk software testing sendiri sangatlah luas, pada materi ini kita hanya akan fokus ke unit testing
+
+Test Pyramid
+
+Contoh High Level Architecture Aplikasi
+
+UI Test / End to End Test
+
+Service Test / Integration Test
+
+Contoh Internal Architecture Aplikasi
+
+Unit Test
+Unit test akan fokus menguji bagian kode program terkecil, biasanya menguji sebuah method
+Unit test biasanya dibuat kecil dan cepat, oleh karena itu biasanya kadang kode unit test lebih banyak dari kode program aslinya, karena semua skenario pengujian akan dicoba di unit test
+Unit test bisa digunakan sebagai cara untuk meningkatkan kualitas kode program kita
+
+Pengenalan PHP Unit Test
+PHP tidak memiliki fitur untuk unit testing secara default, seperti bahasa pemrograman Go-Lang
+Untuk mengimplementasikan unit testing, kita butuh library atau framework di PHP
+PHPUnit adalah salah satu framework untuk unit testing yang paling populer saat ini
+Bayak framework-framework populer seperti Laravel, menggunakan PHPUnit untuk unit testing nya
+https://phpunit.de/ 
+
+Composer
+PHPUnit merupakan framework yang sudah terintegrasi dengan baik dengan composer
+Oleh karena itu, untuk menambahkan PHPUnit, kita wajib menggunakan project PHP yang menggunakan Composer
+https://packagist.org/packages/phpunit/phpunit 
+
+Menginstall PHPUnit
+Untuk menginstall PHPUnit, kita bisa menambah dependency PHPUnit dibagian dev (karena PHPUnit hanya untuk development)
+Setelah itu kita update dependencynya menggunakan Composer
+Secara default, nanti akan terdapat folder bin di dalam vendor yang berisi binary file PHPUnit yang bisa digunakan untuk menjalankan unit test
+
+Kode : composer.json
+{
+  "name": "programmerzamannow/belajar-php-unit-test",
+  "description": "Belajar PHP Unit Test",
+  "type": "project",
+  "authors": [
+    {
+      "name": "Eko Kurniawan Khannedy",
+      "email": "echo.khannedy@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=8.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "9.5.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "ProgrammerZamanNow\\Test\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "ProgrammerZamanNow\\Test\\": "tests"
+    }
+  },
+  "scripts": {
+    "test" : "phpunit --configuration phpunit.xml",
+    "test:product" : "phpunit --configuration phpunit.xml --testsuite product",
+    "test:counter" : "phpunit --configuration phpunit.xml --testsuite counter"
+  }
+}
+
+PHPUnit File
+
+Membuat Unit Test
+
+Setup Autoload
+Sebelum kita mulai belajar membuat unit test menggunakan PHPUnit
+Biasakan membedakan lokasi tempat source code PHP kita dan juga source code Unit Test
+Biasanya rata-rata programmer PHP akan membuat folder tests untuk menyimpan semua unit test nya
+Agar tidak perlu melakukan use namespace lagi, kita bisa menggunakan namespace yang sama untuk folder source code dan folder unit test
+
+Kode : Setup Autoload
+  "autoload": {
+    "psr-4": {
+      "ProgrammerZamanNow\\Test\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "ProgrammerZamanNow\\Test\\": "tests"
+    }
+  },
+
+Membuat Unit Test
+Untuk membuat unit test, kita bisa membuat class turunan dari PHPUnit\Framework\TestCase
+Biasanya pembuatan unit test mengikuti class yang akan kita test
+Misal jika kita punya class Person, maka untuk unit test nya, kita akan membuat class PersonTest
+Dan untuk skenario unit test nya, kita akan simpan dalam public function dengan awalan test*, misal testCreate(), testXxx(), testZzz(). Atau jika tidak menggunakan aturan awalan test*, kita juga bisa menambahkan @test pada function yang akan kita gunakan sebagai unit test
+
+Kode : Class Counter
+<?php
+
+namespace ProgrammerZamanNow\Test;
+
+class Counter
+{
+
+    private int $counter = 0;
+
+    public function increment(): void
+    {
+        $this->counter++;
+    }
+
+    public function getCounter(): int
+    {
+        return $this->counter;
+    }
+
+}
+
+Kode : Test Counter
+<?php
+
+namespace ProgrammerZamanNow\Test;
+
+use PHPUnit\Framework\Assert;
+use PHPUnit\Framework\TestCase;
+
+class CounterTest extends TestCase
+{
+
+    private Counter $counter;
+
+    protected function setUp(): void
+    {
+        $this->counter = new Counter();
+        echo "Membuat Counter" . PHP_EOL;
+    }
+
+    public function testIncrement()
+    {
+        self::assertEquals(0, $this->counter->getCounter());
+        self::markTestIncomplete("TODO do counter again");
+        echo "TEST TEST" . PHP_EOL;
+    }
+
+    public function testCounter()
+    {
+        $this->counter->increment();
+        Assert::assertEquals(1, $this->counter->getCounter());
+
+        $this->counter->increment();
+        $this->assertEquals(2, $this->counter->getCounter());
+
+        $this->counter->increment();
+        self::assertEquals(3, $this->counter->getCounter());
+    }
+
+    /**
+     * @test
+     */
+    public function increment()
+    {
+        self::markTestSkipped("Masih ada error yang bingung");
+
+        $this->counter->increment();
+        Assert::assertEquals(1, $this->counter->getCounter());
+    }
+
+    public function testFirst(): Counter
+    {
+        $this->counter->increment();
+        $this->assertEquals(1, $this->counter->getCounter());
+
+        return $this->counter;
+    }
+
+    /**
+     * @depends testFirst
+     */
+    public function testSecond(Counter $counter): void
+    {
+        $counter->increment();
+        $this->assertEquals(2, $counter->getCounter());
+    }
+
+    protected function tearDown(): void
+    {
+        echo "Tear Down" . PHP_EOL;
+    }
+
+    /**
+     * @after
+     */
+    protected function after(): void
+    {
+        echo "After" . PHP_EOL;
+    }
+
+    /**
+     * @requires OSFAMILY Windows
+     */
+    public function testOnlyWindows()
+    {
+        self::assertTrue(true, "Only in Windows");
+    }
+
+    /**
+     * @requires PHP >= 8
+     * @requires OSFAMILY Darwin
+     */
+    public function testOnlyForMacAndPHP8()
+    {
+        self::assertTrue(true, "Only for Mac and PHP 8");
+    }
+
+
+}
+
+Menjalankan Unit Test
