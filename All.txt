@@ -219,3 +219,530 @@ class CounterTest extends TestCase
 }
 
 Menjalankan Unit Test
+Setelah kita membuat unit test, kita bisa menjalankan unit test tersebut menggunakan binary file PHPUnit bernama phpunit
+Caranya gunakan perintah : 
+vendor/bin/phpunit tests/CounterTest.php
+
+Kode : Menjalankan Unit Test
+
+Menjalankan Unit Test Per Method
+Kadang, ada kebutuhan kita hanya perlu menjalankan unit test hanya method tertentu
+Untuk melakukan itu, kita bisa menggunakan perintah :
+vendor/bin/phpunit --filter ‘ClassTest::testMethod’ tests/ClassTest.php
+
+Kode : Menjalankan Test Per Method
+
+Assertions
+Pada kode unit test sebelumnya, terdapat peringatan yang menyebutkan bahwa unit test kita tidak memiliki assertions
+Apa itu Assertions?
+Assertions adalah mengecek apakah apakah sebuah kondisi sudah terpenuhi, jika kondisi tidak terpenuhi, maka unit test nya kita anggap gagal
+
+Class Assert
+Untuk melakukan assertions, kita tidak perlu melakukannya secara manual menggunakan if else, kita bisa memanfaatkan class yang sudah disediakan oleh PHPUnit bernama PHPUnit\Framework\Assert
+Class Assert berisi static function yang banyak sekali, dan bisa kita gunakan sesuai kebutuhan
+Saat kondisi pada assertions tidak terpenuhi, secara otomatis akan terjadi error, dan unit test akan dianggap gagal
+https://phpunit.readthedocs.io/en/9.5/assertions.html 
+
+Kode : Menggunakan Assert
+<?php
+
+namespace ProgrammerZamanNow\Test;
+
+use PHPUnit\Framework\Assert;
+use PHPUnit\Framework\TestCase;
+
+class CounterTest extends TestCase
+{
+
+    private Counter $counter;
+
+    protected function setUp(): void
+    {
+        $this->counter = new Counter();
+        echo "Membuat Counter" . PHP_EOL;
+    }
+
+    public function testIncrement()
+    {
+        self::assertEquals(0, $this->counter->getCounter());
+        self::markTestIncomplete("TODO do counter again");
+        echo "TEST TEST" . PHP_EOL;
+    }
+
+    public function testCounter()
+    {
+        $this->counter->increment();
+        Assert::assertEquals(1, $this->counter->getCounter());
+
+        $this->counter->increment();
+        $this->assertEquals(2, $this->counter->getCounter());
+
+        $this->counter->increment();
+        self::assertEquals(3, $this->counter->getCounter());
+    }
+
+    /**
+     * @test
+     */
+    public function increment()
+    {
+        self::markTestSkipped("Masih ada error yang bingung");
+
+        $this->counter->increment();
+        Assert::assertEquals(1, $this->counter->getCounter());
+    }
+
+    public function testFirst(): Counter
+    {
+        $this->counter->increment();
+        $this->assertEquals(1, $this->counter->getCounter());
+
+        return $this->counter;
+    }
+
+    /**
+     * @depends testFirst
+     */
+    public function testSecond(Counter $counter): void
+    {
+        $counter->increment();
+        $this->assertEquals(2, $counter->getCounter());
+    }
+
+    protected function tearDown(): void
+    {
+        echo "Tear Down" . PHP_EOL;
+    }
+
+    /**
+     * @after
+     */
+    protected function after(): void
+    {
+        echo "After" . PHP_EOL;
+    }
+
+    /**
+     * @requires OSFAMILY Windows
+     */
+    public function testOnlyWindows()
+    {
+        self::assertTrue(true, "Only in Windows");
+    }
+
+    /**
+     * @requires PHP >= 8
+     * @requires OSFAMILY Darwin
+     */
+    public function testOnlyForMacAndPHP8()
+    {
+        self::assertTrue(true, "Only for Mac and PHP 8");
+    }
+
+
+}
+
+Assert di TestCase
+Saat kita membuat class unit test, maka kita wajib membuat class turunan dari class TestCase
+Sedangkan class TestCase itu sendiri, merupakan turunan dari class Assert
+Jadi secara tidak langsung, kita juga bisa menggunakan function-function assertions langsung dari unit test menggunakan $this atau self
+
+Kode : Assert di TestCase
+        $this->counter->increment();
+        Assert::assertEquals(1, $this->counter->getCounter());
+
+        $this->counter->increment();
+        $this->assertEquals(2, $this->counter->getCounter());
+
+        $this->counter->increment();
+        self::assertEquals(3, $this->counter->getCounter());
+
+Annotation
+Secara default, saat kita membuat function unit test, maka harus diawali dengan nama function test
+PHPUnit juga mendukung fitur annotation, yaitu medadata atau informasi yang bisa dimasukkan ke dalam source code, dimana di PHP annotation ditempatkan pada Doc Block (block komentar)
+Ada banyak sekali annotation yang terdapat di PHPUnit, kita akan bahas satu persatu sambil berjalannya materi
+https://phpunit.readthedocs.io/en/9.5/annotations.html 
+
+@test
+@test merupakan annotation yang digunakan untuk menandakan bahwa function ini adalah sebuah unit test
+Dengan menambahkan @test, kita tidak perlu lagi membuat nama function selalu diawali dengan kata test
+
+Kode : @test
+    /**
+     * @test
+     */
+    public function increment()
+    {
+        self::markTestSkipped("Masih ada error yang bingung");
+
+        $this->counter->increment();
+        Assert::assertEquals(1, $this->counter->getCounter());
+    }
+
+Test Dependency
+Pada saat membuat unit test, kadang kita ingin melanjutkan unit test sebelumnya atau bahkan tergantung dengan unit test sebelumnya
+Di PHPUnit, kita bisa membuat unit test yang tergantung dari hasil unit test lainnya
+Untuk melakukan itu, kita bisa menggunakan annotation @depends namaUnitTest
+
+Kode : Test Dependency
+    public function testFirst(): Counter
+    {
+        $this->counter->increment();
+        $this->assertEquals(1, $this->counter->getCounter());
+
+        return $this->counter;
+    }
+
+    /**
+     * @depends testFirst
+     */
+    public function testSecond(Counter $counter): void
+    {
+        $counter->increment();
+        $this->assertEquals(2, $counter->getCounter());
+    }
+
+Perhatian
+Unit test yang baik harus independen
+Tidak tergantung dengan unit test lainnya
+Jika kita membuat unit test yang tergantung dengan unit test lain, maka jika unit test sebelumnya error, maka unit test kita juga akan error
+
+Data Provider
+Dalam membuat unit test, sering terdapat kasus dimana kita ingin mengkombinasikan beberapa input data
+Sebenarnya hal ini bisa dilakukan secara manual satu persatu
+Hanya saja akan terlalu banyak hal yang harus kita tulis
+PHPUnit mendukung fitur data provider, dimana kita bisa membuat unit test dengan parameter, dan datanya di provide dari function lain
+Untuk melakukan ini, kita bisa menggunakan annotation @dataProvider providerFunction
+
+Kode : Math Class
+<?php
+
+namespace ProgrammerZamanNow\Test;
+
+class Math
+{
+
+    public static function sum(array $values): int
+    {
+        $total = 0;
+        foreach ($values as $value) {
+            $total += $value;
+        }
+        return $total;
+    }
+
+}
+
+Kode : Unit Test Math Manual
+<?php
+
+namespace ProgrammerZamanNow\Test;
+
+use PHPUnit\Framework\TestCase;
+
+class MathTest extends TestCase
+{
+    public function testManual()
+    {
+        self::assertEquals(10, Math::sum([5, 5]));
+        self::assertEquals(20, Math::sum([4, 4, 4, 4, 4]));
+        self::assertEquals(9, Math::sum([3, 3, 3]));
+        self::assertEquals(0, Math::sum([]));
+        self::assertEquals(2, Math::sum([2]));
+        self::assertEquals(4, Math::sum([2, 2]));
+    }
+
+Kode : Unit Test dengan Data Provider
+
+    /**
+     * @dataProvider mathSumData
+     */
+    public function testDataProvider(array $values, int $expected)
+    {
+        self::assertEquals($expected, Math::sum($values));
+    }
+
+    public function mathSumData(): array
+    {
+        return [
+            [[5, 5], 10],
+            [[4, 4, 4, 4, 4], 20],
+            [[3, 3, 3], 9],
+            [[], 0],
+            [[2], 2],
+        ];
+    }
+
+Kode : Data Provider
+    public function mathSumData(): array
+    {
+        return [
+            [[5, 5], 10],
+            [[4, 4, 4, 4, 4], 20],
+            [[3, 3, 3], 9],
+            [[], 0],
+            [[2], 2],
+        ];
+    }
+
+@testWith
+Saat menggunakan @dataProvider, kita harus membuat function yang mengembalikan data
+Ada cara lebih mudah tanpa harus membuat function terlebih dahulu, yaitu menggunakan annotation @testWith
+Dengan menggunakan @testWith kita bisa mengirim data ke unit test tanpa harus membuat function, kita cukup masukkan dalam doc saja
+
+Kode : @testWith
+    /**
+     * @testWith [[5,5], 10]
+     *           [[4,4,4,4,4], 20]
+     *           [[3,3,3], 9]
+     *           [[], 0]
+     *           [[2], 2]
+     */
+    public function testWith(array $values, int $expected)
+    {
+        self::assertEquals($expected, Math::sum($values));
+    }
+
+Test Exception
+Saat membuat unit test, pastikan kita tidak hanya membuat unit test dengan skenario benar
+Kita juga wajib membuat unit test dengan skenario salah atau gagal
+Salah satunya kadang saat terjadi skenario salah atau gagal, kita sering menggunakan Exception
+PHPUnit memiliki fitur assertion untuk memastikan bahwa sebuah Exception harus terjadi
+Jika terjadi, maka unit test dianggap gagal
+Kita bisa menggunakan function Assert::expectException(ClassException::class) jika ingin memastikan bahwa sebuah unit test harus terjadi exception yang kita perkirakan
+
+Kode : Class Person
+<?php
+
+
+namespace ProgrammerZamanNow\Test;
+
+
+class Person
+{
+
+    public function __construct(private string $name)
+    {
+    }
+
+    public function sayHello(?string $name)
+    {
+        if ($name == null) throw new \Exception("Name is null");
+
+        return "Hello $name, my name is $this->name";
+    }
+
+    public function sayGoodBye(?string $name)
+    {
+        echo "Good bye $name" . PHP_EOL;
+    }
+}
+
+Kode : Test Exception
+<?php
+
+
+namespace ProgrammerZamanNow\Test;
+
+
+use PHPUnit\Framework\TestCase;
+
+class PersonTest extends TestCase
+{
+
+    private Person $person;
+
+    protected function setUp(): void
+    {
+
+    }
+
+    /**
+     * @before
+     */
+    public function createPerson()
+    {
+        $this->person = new Person("Eko");
+    }
+
+    public function testSuccess()
+    {
+        self::assertEquals("Hello Budi, my name is Eko", $this->person->sayHello("Budi"));
+    }
+
+    public function testException()
+    {
+        $this->expectException(\Exception::class);
+        $this->person->sayHello(null);
+    }
+
+    public function testGoodByeSuccess()
+    {
+        $this->expectOutputString("Good bye Budi" . PHP_EOL);
+        $this->person->sayGoodBye("Budi");
+    }
+
+
+}
+
+Test Output
+Apa yang terjadi jika kita ingin menguji sebuah fitur, namun fitur tersebut tidak mengembalikan data apapun?
+Misal hanya melakukan echo saja
+PHPUnit memiliki fitur untuk mendeteksi output, dengan demikian kita bisa memastikan bahwa output yang dihasilkan sesuai dengan yang kita inginkan
+Untuk melakukan itu, kita bisa menggunakan Assert::expectOutputString(‘string');
+
+Kode : Say GoodBye
+    public function sayGoodBye(?string $name)
+    {
+        echo "Good bye $name" . PHP_EOL;
+    }
+
+Kode : Test Output
+    public function testGoodByeSuccess()
+    {
+        $this->expectOutputString("Good bye Budi" . PHP_EOL);
+        $this->person->sayGoodBye("Budi");
+    }
+
+Fixture
+Salah satu yang memakan waktu saat membuat unit test adalah, membuat kode awal yang berulang-ulang sebelum unit test
+Atau membuat kode akhir yang berulang-ulang setelah unit test
+Hal ini dinamakan fixture
+Pada unit test sebelumnya yang sudah kita buat, kita sering sekali membuat object $counter, atau $person
+Dengan menggunakan fitur Fixture milik PHPUnit, hal ini bisa dipermudah
+
+setUp() Function
+Class TestCase memiliki sebuah function bernama setUp()
+function setUp() merupakan function yang akan selalu dipanggil sebelum function unit test dieksekusi
+function setUp() cocok sekali untuk membuat kode yang kita inginkan sebelum unit test dijalankan
+
+Kode : Function setUp()
+class PersonTest extends TestCase
+{
+
+    private Person $person;
+
+    protected function setUp(): void
+    {
+
+    }
+
+    /**
+     * @before
+     */
+    public function createPerson()
+    {
+        $this->person = new Person("Eko");
+    }
+
+Annotation @before
+Jika kita ingin membuat function dengan nama berbeda, kita bisa menggunakan annotation @before
+Bahkan jika menggunakan annotation @before, kita bisa membuat function setup lebih dari satu
+
+Kode : @before
+    /**
+     * @before
+     */
+    public function createPerson()
+    {
+        $this->person = new Person("Eko");
+    }
+
+    public function testSuccess()
+    {
+        self::assertEquals("Hello Budi, my name is Eko", $this->person->sayHello("Budi"));
+    }
+
+Perhatikan
+Function fixture akan dieksekusi tiap kali method unit test di eksekusi
+Artinya jika terdapat 10 function unit test, maka fixture akan 10 kali juga dieksekusi
+
+Kode : Fixture
+    protected function setUp(): void
+    {
+        $this->counter = new Counter();
+        echo "Membuat Counter" . PHP_EOL;
+    }
+
+    public function testIncrement()
+    {
+        self::assertEquals(0, $this->counter->getCounter());
+        self::markTestIncomplete("TODO do counter again");
+        echo "TEST TEST" . PHP_EOL;
+    }
+
+    public function testCounter()
+    {
+        $this->counter->increment();
+        Assert::assertEquals(1, $this->counter->getCounter());
+
+tearDown() Function
+Class TestCase memiliki sebuah function bernama tearDown()
+function tearDown() merupakan function yang akan selalu dipanggil setelah function unit test dieksekusi
+function tearDown() cocok sekali untuk membuat kode yang kita inginkan setelah unit test dijalankan
+Selain menggunakan tearDown(), kita juga bisa menggunakan annotation @after
+
+Kode : tearDown() Function
+    protected function tearDown(): void
+    {
+        echo "Tear Down" . PHP_EOL;
+    }
+
+    /**
+     * @after
+     */
+    protected function after(): void
+    {
+        echo "After" . PHP_EOL;
+    }
+
+Sharing Fixture
+
+Independent Unit Test
+Secara default, class unit test itu sebenarnya akan selalu dibuat sebelum function unit test dijalankan, jadi tidak menggunakan object unit test yang sama
+Begini cara berjalan unit test :
+membuat object unit test
+menjalankan fixture set up
+menjalankan function unit test
+menjalankan fixture tear down
+ulangi dari awal untuk function unit test selanjutnya
+
+Sharing Fixture
+Karena object dari class unit test selalu dibuat ulang, maka kadang agak menyulitkan jika kita ingin membuat data yang bisa di sharing antar unit test, misal koneksi database
+Untuk hal seperti ini, kita bisa membuat data nya berupa variable static, sehingga variable static tersebut tidak perlu tergantung dengan object unit test lagi
+
+Kode : Sharing Dengan Static
+class CounterStaticTest extends TestCase
+{
+
+    public static Counter $counter;
+
+Fixture Class
+Sekarang pertanyaannya, bagaimana cara menginisialisasi data static tersebut? Karena kita tidak bisa menggunakan setUp() method, karena bukan static function
+Untungnya PHPUnit mendukung sharing fixture seperti ini, nama function nya adalah :
+static function setUpBeforeClass() untuk setup diawal ketika class unit test dieksekusi, atau menggunakan @beforeClass
+static function tearDownAfterClass() untuk dipanggil diakhir ketika class unit test selesai, atau menggunakan @afterClass
+Sharing fixture hanya dieksekusi sekali diawal dan diakhir, walaupun di class unit test terdapat banyak function unit test
+
+Kode : Sharing Fixture
+    public static Counter $counter;
+
+    public static function setUpBeforeClass(): void
+    {
+        self::$counter = new Counter();
+    }
+
+    public function testFirst()
+    {
+        self::$counter->increment();
+        self::assertEquals(1, self::$counter->getCounter());
+    }
+
+Incomplete Test
+Saat membuat unit test, kadang kita membuat test dengan dimulai dengan function kosong, lalu mulai diisi dengan kode unit test
+Kadang ada kalanya unit test belum selesai
+Secara default, jika tidak terdapat masalah pada unit test nya, maka PHPUnit akan menganggap unit test tersebut sebagai unit test yang sukses
+Dan kadang jika lupa, bisa jadi kita tidak pernah tahu kalo ternyata ada unit test yang belum selesai, karena terlihat sukses
+Untuk kasus seperti ini, ada baiknya kita memberi tahu ke PHPUnit bahwa unit test tersebut belum selesai dengan menggunakan method Assert::markTestIncomplete()
+
+Kode : Test Sukses Walau Belum Selesai
