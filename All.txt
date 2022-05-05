@@ -983,3 +983,409 @@ PHPUnit mendukung pembuatan object stub secara mudah hanya dengan menggunakan fu
 method createStub() secara otomatis akan membuat object class atau interface yang kita inginkan dengan default implementation
 
 Kode : Membuat Stub
+<?php
+
+namespace ProgrammerZamanNow\Test;
+
+use PHPUnit\Framework\Assert;
+use PHPUnit\Framework\TestCase;
+
+class CounterTest extends TestCase
+{
+
+    private Counter $counter;
+
+    protected function setUp(): void
+    {
+        $this->counter = new Counter();
+        echo "Membuat Counter" . PHP_EOL;
+    }
+
+Konfigurasi Stub
+Secara default, semua function di stub akan mengembalikan null jika nullable return type, atau default value jika tipe data primitive, atau stub lain jika tipe data class
+Biasanya kita akan melakukan konfigurasi stub terlebih dahulu sebelum kita menggunakan stub
+Dengan begitu, kita bisa memprediksi tingkah laku stub tersebut sesuai dengan konfigurasi yang kita buat
+Melakukan konfigurasi stub sederhananya hanya memberi tahu stub, jika sebuah function di eksekusi, kita ingin mengembalikan data apa
+
+Invocation Stubber
+Stub memiliki function yang bernama method(name), dimana dia akan mengembalikan InvocationStubber
+Dengan InvocationStubber, kita bisa mengatur hasil kembalian dari function yang dipanggil di stub
+https://github.com/sebastianbergmann/phpunit/blob/master/src/Framework/MockObject/Builder/InvocationStubber.php 
+
+Kode : Konfigurasi Stub
+    public function testStub()
+    {
+        $product = new Product();
+        $product->setId("1");
+
+        $this->repository->method("findById")
+            ->willReturn($product);
+
+        $result = $this->repository->findById("1");
+        self::assertSame($product, $result);
+    }
+
+Kode : Konfigurasi Stub dengan Map
+    public function testStubMap()
+    {
+        $product1 = new Product();
+        $product1->setId("1");
+
+        $product2 = new Product();
+        $product2->setId("2");
+
+        $map = [
+            ["1", $product1],
+            ["2", $product2],
+        ];
+
+        $this->repository->method("findById")
+            ->willReturnMap($map);
+
+        self::assertSame($product1, $this->repository->findById("1"));
+        self::assertSame($product2, $this->repository->findById("2"));
+    }
+
+Kode : Konfigurasi Stub dengan Callback
+    public function testStubCallback()
+    {
+        $this->repository->method("findById")
+            ->willReturnCallback(function (string $id) {
+                $product = new Product();
+                $product->setId($id);
+                return $product;
+            });
+
+        self::assertEquals("1", $this->repository->findById("1")->getId());
+        self::assertEquals("2", $this->repository->findById("2")->getId());
+        self::assertEquals("3", $this->repository->findById("3")->getId());
+    }
+
+Integrasi Dengan Stub
+Sekarang kita sudah tahu cara menggunakan stub
+Jika kita akan membuat uni test untuk sebuah class, dan ternyata class tersebut membutuhkan object lain, maka disarankan untuk menggunakan stub
+Hal ini agar tingkah laku stub bisa kita konfigurasi, sehingga perubahan yang terjadi di class asli stub nya tidak akan mempengaruhi unit test kita
+
+Kode : Product Service Test Sukses
+    public function testRegisterSuccess()
+    {
+        $this->repository->method("findById")->willReturn(null);
+        $this->repository->method("save")->willReturnArgument(0);
+
+        $product = new Product();
+        $product->setId("1");
+        $product->setName("Contoh");
+
+        $result = $this->service->register($product);
+
+        self::assertEquals($product->getId(), $result->getId());
+        self::assertEquals($product->getName(), $result->getName());
+    }
+
+Kode : Product Service Test Gagal
+    public function testRegisterException()
+    {
+        $this->expectException(\Exception::class);
+
+        $productInDB = new Product();
+        $productInDB->setId("1");
+
+        $this->repository->method("findById")->willReturn($productInDB);
+
+        $product = new Product();
+        $product->setId("1");
+
+        $this->service->register($product);
+    }
+
+Mock Object
+
+Masalah Dengan Stub
+Stub sangat cocok sekali ketika kita butuh membuat object dependency untuk class yang sedang kita test
+Namun ada satu masalah yang terdapat di stub, yaitu kita tidak bisa mengetahui berapa kali interaksi terjadi terhadap object stub tersebut
+Pada kasus sebelumnya, misal kita coba implementasikan service untuk delete product
+
+Kode : Service Delete Product
+    public function delete(string $id): void
+    {
+        $product = $this->repository->findById($id);
+        if ($product == null) {
+            throw new \Exception("Product is not found");
+        }
+
+        $this->repository->delete($product);
+    }
+
+Kode : Unit Test Delete dengan Stub
+    public function testDeleteSuccess()
+    {
+        $product = new Product();
+        $product->setId("1");
+
+        $this->repository->method("findById")->willReturn($product);
+
+        $this->service->delete("1");
+        self::assertTrue(true, "Success delete");
+
+    }
+
+    public function testDeleteException()
+    {
+        $this->expectException(\Exception::class);
+        $this->repository->method("findById")->willReturn(null);
+
+        $this->service->delete("1");
+
+    }
+
+Kesalahan Pada Unit Test
+Sekilas, unit test yang kita buat seperti tidak ada masalah
+Tapi coba jika kita ubah implementasi class Service nya
+Misal, kita call delete sebanyak lebih dari satu kali
+Atau bahkan kita hapus kode delete menggunakan repository
+Hasilnya, semua unit test akan tetap sukses, dan artinya terdapat kesalahan dalam unit test kita
+
+Perubahan Service Delete
+    public function delete(string $id): void
+    {
+        $product = $this->repository->findById($id);
+        if ($product == null) {
+            throw new \Exception("Product is not found");
+        }
+
+        $this->repository->delete($product);
+    }
+
+Mock Object
+PHPUnit memiliki fitur bernama Mock Object
+Mock object sama seperti stub, hanya saja pada mock object, kita bisa melakukan verifikasi berapa banyak sebuah method dipanggil
+Cara membuat mock object adalah dengan menggunakan function createMock(class) yang terdapat pada class TestCase
+
+Kode : Membuat Mock Object
+<?php
+
+
+namespace ProgrammerZamanNow\Test;
+
+
+use PHPUnit\Framework\TestCase;
+
+class ProductServiceMockTest extends TestCase
+{
+
+    private ProductRepository $repository;
+    private ProductService $service;
+
+    protected function setUp(): void
+    {
+        $this->repository = $this->createMock(ProductRepository::class);
+        $this->service = new ProductService($this->repository);
+    }
+
+Konfigurasi Mock Object
+Konfigurasi mock object mirip dengan stub, kita bisa menggunakan function method(name)
+Namun sebelum kita menggunakan function method(name), kita bisa menambahkan expects(invocationRule) sebagai ekspektasi berapa kali function dipanggil
+
+Invocation Rule
+ TestCase Invocation Rule Function
+Keterangan
+any()
+Berapa kali pun dipanggil
+never()
+Tidak pernah dipanggil
+atLeast(number)
+Minimal dipanggil
+atLeastOnce()
+Minimal satu kali dipanggil
+once()
+Satu kali dipanggil
+exactly(number)
+Harus dipanggil sejumlah number
+atMost(number)
+Maksimal dipanggil sejumlah number
+
+Kode : Konfigurasi Mock Object
+    public function testMock()
+    {
+        $product = new Product();
+        $product->setId("1");
+
+        $this->repository->expects(self::once())
+            ->method("findById")
+            ->willReturn($product);
+
+        $result = $this->repository->findById("1");
+        self::assertSame($product, $result);
+    }
+
+Integrasi Dengan Mock Object
+Sekarang kita sudah tahu cara menggunakan mock object
+Sekarang jika kita membutuhkan interaksi terhadap data stub, dan juga ingin memastikan berapa kali function dipanggil, maka kita bisa menggunakan mock object
+
+Kode : Integrasi Dengan Mock Object
+    public function testDeleteSuccess()
+    {
+        $product = new Product();
+        $product->setId("1");
+
+        $this->repository->expects(self::once())
+            ->method("delete")
+            ->with(self::equalTo($product));
+
+        $this->repository->expects(self::once())
+            ->method("findById")
+            ->willReturn($product)
+            ->with(self::equalTo("1"));
+
+        $this->service->delete("1");
+        self::assertTrue(true, "Success delete");
+
+    }
+
+    public function testDeleteException()
+    {
+        $this->repository->expects(self::never())
+            ->method("delete");
+
+        $this->expectException(\Exception::class);
+        $this->repository->expects(self::once())
+            ->method("findById")
+            ->willReturn(null)
+            ->with(self::equalTo("1"));
+
+        $this->service->delete("1");
+
+    }
+
+Memastikan Parameternya Benar
+Setelah menggunakan mock object, kita bisa memastikan berapa jumlah function dipanggil
+Namun jika parameter yang dikirim salah, maka secara otomatis unit test tetap akan sukses, padahal harusnya unit test tersebut gagal
+Pada kasus ini, mock object mendukung verifikasi parameter juga, untuk memastikan bahwa parameter yang diterima function benar
+Kita bisa menggunakan method with(...constraint) pada mock object
+Semua class constraint terdapat disini : https://github.com/sebastianbergmann/phpunit/tree/master/src/Framework/Constraint
+Namun kita tidak perlu membuatnya manual, kita bisa menggunakan static function di Assert class
+
+Kode : Memastikan Parameter Benar
+    public function testDeleteSuccess()
+    {
+        $product = new Product();
+        $product->setId("1");
+
+        $this->repository->expects(self::once())
+            ->method("delete")
+            ->with(self::equalTo($product));
+
+        $this->repository->expects(self::once())
+            ->method("findById")
+            ->willReturn($product)
+            ->with(self::equalTo("1"));
+
+        $this->service->delete("1");
+        self::assertTrue(true, "Success delete");
+
+    }
+
+    public function testDeleteException()
+    {
+        $this->repository->expects(self::never())
+            ->method("delete");
+
+        $this->expectException(\Exception::class);
+        $this->repository->expects(self::once())
+            ->method("findById")
+            ->willReturn(null)
+            ->with(self::equalTo("1"));
+
+        $this->service->delete("1");
+
+    }
+
+Mock Trait dan Abstract Class
+Function createMock(class) hanya bisa digunakan untuk class dan interface, jika kita butuh membuat mock object, namun dari data Trait atau Abstract Class, maka kita perlu membuatnya menggunakan function yang berbeda
+Function getMockForTrait(trait) untuk membuat mock object dari trait
+Function getMockForAbstractClass(abstractClass) untuk membuat mock object dari abstract class
+
+Configuration
+Sebelumnya kita menjalankan PHPUnit tanpa konfigurasi apapun
+PHPUnit mendukung file konfigurasi, dimana kita bisa menambahkan konfigurasi untuk PHPUnit
+File konfigurasi PHPUnit bentuknya adalah file XML, biasanya nama file nya adalah phpunit.xml
+Kita bisa menambahkan informasi apapun pada konfigurasi PHPUnit
+Detail apa saja yang bisa kita ubah pada konfigurasi nya bisa kita lihat di halaman documentation nya
+https://phpunit.readthedocs.io/en/9.5/configuration.html 
+
+Kode : Contoh Configuration
+<phpunit colors="true" stopOnError="true" verbose="true">
+    <testsuites>
+        <testsuite name="product">
+            <file>tests/ProductServiceMockTest.php</file>
+            <file>tests/ProductServiceTest.php</file>
+        </testsuite>
+        <testsuite name="counter">
+            <file>tests/CounterStaticTest.php</file>
+            <file>tests/CounterTest.php</file>
+        </testsuite>
+        <testsuite name="all">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>
+
+Menjalankan PHPUnit dan Configuration
+Setelah file configuration nya selesai, kita bisa menjalankan PHPUnit dengan perintah
+phpunit --configuration phpunit.xml
+
+Kode : Integrasi Dengan Composer Script
+  "scripts": {
+    "test" : "phpunit --configuration phpunit.xml",
+    "test:product" : "phpunit --configuration phpunit.xml --testsuite product",
+    "test:counter" : "phpunit --configuration phpunit.xml --testsuite counter"
+  }
+
+Test Suite
+Saat kita menggunakan PHPUnit Configuration, kita bisa membuat beberapa test suite
+Anggap saja test suite seperti grup atau fitur dalam unit test, misal kita ingin membedakan antara grup tiap fitur pada unit test, lalu kita ingin menjalankan test sesuai dengan fitur nya
+Pada kasus seperti itu, kita bisa membuat test suite yang berbeda untuk tiap fitur, sehingga saat menjalankan unit test, kita bisa memilih test suite mana yang ingin kita jalankan
+
+Kode : Configuration dengan Test Suite
+<phpunit colors="true" stopOnError="true" verbose="true">
+    <testsuites>
+        <testsuite name="product">
+            <file>tests/ProductServiceMockTest.php</file>
+            <file>tests/ProductServiceTest.php</file>
+        </testsuite>
+        <testsuite name="counter">
+            <file>tests/CounterStaticTest.php</file>
+            <file>tests/CounterTest.php</file>
+        </testsuite>
+        <testsuite name="all">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>
+
+Menjalankan Test Suite Tertentu
+Secara default, saat kita menjalankan unit test, PHPUnit akan melakukan test semua test suite
+Namun jika kita ingin memilih test suite tertentu, kita bisa melakukannya dengan perintah :
+
+Kode : Menjalankan Test Suite Tertentu
+  "scripts": {
+    "test" : "phpunit --configuration phpunit.xml",
+    "test:product" : "phpunit --configuration phpunit.xml --testsuite product",
+    "test:counter" : "phpunit --configuration phpunit.xml --testsuite counter"
+  }
+
+Fitur Lainnya
+Secara garis besar, kita sudah mempelajari semua fitur utama yang terdapat di PHPUnit
+Sekarang sangat disarankan ketika membuat aplikasi PHP, kita mengimplementasikan unit test
+Berikut adalah beberapa fitur yang bisa di eksplore jika ingin memperdalam library PHPUnit :
+
+
+Mempelajari annotation di PHPUnit : https://phpunit.readthedocs.io/en/9.5/annotations.html
+Mempelajari perintah command line PHPUnit : https://phpunit.readthedocs.io/en/9.5/textui.html 
+Mempelajari xml configuration di PHPUnit : https://phpunit.readthedocs.io/en/9.5/configuration.html 
+Mempelajari code coverage : https://phpunit.readthedocs.io/en/9.5/code-coverage-analysis.html 
+
+Materi Selanjutnya
+Perbanyak Studi Kasus
+Belajar PHP Library
+Belajar PHP Framework
